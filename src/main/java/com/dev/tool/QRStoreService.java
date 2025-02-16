@@ -13,6 +13,7 @@ public class QRStoreService {
              Statement stmt = connection.createStatement()) {
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS qr_stores (id INTEGER PRIMARY KEY AUTOINCREMENT, store_name TEXT NOT NULL)");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS qr_codes (id INTEGER PRIMARY KEY AUTOINCREMENT, qr_code TEXT NOT NULL, store_id INTEGER NOT NULL, FOREIGN KEY (store_id) REFERENCES qr_stores (id) ON DELETE CASCADE)");
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS auth (id TEXT PRIMARY KEY)");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -16,6 +16,9 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.geometry.Insets;
 
@@ -32,6 +35,7 @@ public class MainController implements Initializable {
     public TextField excel1Field;
     public TextField excel2Field;
     public TextArea codeTextArea;
+    public Text statusVerifyField;
     private List<QRStore> qrStores;
 
     public VBox qrContainer;
@@ -101,6 +105,19 @@ public class MainController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         QRStoreService.createTable();
         refreshQRCard();
+        checkAuthInit();
+    }
+
+    private void checkAuthInit() {
+        List<String> keys = AuthService.getAllKeys();
+        for (String key : keys) {
+            if (key.equals("HongRancho")) {
+                AuthController.getInstance().isLoggedIn = true;
+                statusVerifyField.setText("Trạng thái: đã xác thực");
+                statusVerifyField.setFill(Color.GREEN);
+                break;
+            }
+        }
     }
 
     private void refreshQRCard() {
@@ -159,7 +176,7 @@ public class MainController implements Initializable {
                             }
 
                             // Sử dụng Platform.runLater để hiển thị hộp thoại lưu file
-                            final File fileExport1[] = new File[1];  // Lưu giá trị file để sử dụng sau
+                            final File[] fileExport1 = new File[1];  // Lưu giá trị file để sử dụng sau
                             Platform.runLater(() -> {
                                 FileChooser fileChooser = FileChooserService.csvFileChooser();
                                 fileExport1[0] = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
@@ -292,11 +309,12 @@ public class MainController implements Initializable {
                 boolean remember = rememberCheckBox.isSelected();
                 if (key.equals("HongRancho")) {
                     AuthController.getInstance().isLoggedIn = true;
-                    //removeAuthBtn.setVisible(true);
+                    statusVerifyField.setText("Trạng thái: đã xác thực");
+                    statusVerifyField.setFill(Color.GREEN);
                     if (remember) {
                         try {
-                            AuthController.getInstance().writeKey(key);
-                        } catch (IOException var7) {
+                            AuthService.insertKey(key);
+                        } catch (Exception var7) {
                             this.notification("Lỗi", var7.getMessage(), Alert.AlertType.ERROR);
                         }
                     }

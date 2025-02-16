@@ -14,6 +14,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.paint.Color?>
 <?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
 
 <AnchorPane fx:id="rootPane" prefHeight="600.0" prefWidth="900.0" style="-fx-background-color: #F8F9FA;" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.dev.tool.MainController">
    <children>
@@ -100,6 +101,11 @@
                <cursor>
                   <Cursor fx:constant="HAND" />
                </cursor></Button>
+            <Text fx:id="statusVerifyField" fill="RED" layoutX="14.0" layoutY="35.0" strokeType="OUTSIDE" strokeWidth="0.0" text="Trạng thái: chưa xác thực">
+               <font>
+                  <Font size="14.0" />
+               </font>
+            </Text>
          </children>
       </Pane>
       <TextArea fx:id="codeTextArea" layoutX="14.0" layoutY="145.0" prefHeight="375.0" prefWidth="358.0" promptText="ID:FROM-TO" style="-fx-background-color: #ffffff; -fx-background-radius: 6;">
