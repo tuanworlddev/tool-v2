@@ -90,9 +90,13 @@ public class QRScannerService {
         int width = bufferedImage.getWidth();
         int height = bufferedImage.getHeight();
 
-        String result = decodeQRCode(bufferedImage);
-        if (result != null) {
-            return result;
+        try {
+            String result = decodeQRCode(bufferedImage);
+            if (result != null) {
+                return result;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error decoding QR Code", e);
         }
 
         int horizontal = 2;
@@ -100,9 +104,13 @@ public class QRScannerService {
             int startX = i * (width / horizontal);
             int regionWidth = (i == horizontal - 1) ? (width - startX) : (width / horizontal);
             BufferedImage region = bufferedImage.getSubimage(startX, 0, regionWidth, height);
-            String result1 = decodeQRCode(region);
-            if (result1 != null) {
-                return result1;
+            try {
+                String result = decodeQRCode(region);
+                if (result != null) {
+                    return result;
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Error decoding QR code from 1/2 width image.", e);
             }
         }
 
@@ -110,9 +118,13 @@ public class QRScannerService {
             int startY = i * (height / horizontal);
             int regionHeight = (i == horizontal - 1) ? (height - startY) : (height / horizontal);
             BufferedImage region = bufferedImage.getSubimage(0, startY, width, regionHeight);
-            String result2 = decodeQRCode(region);
-            if (result2 != null) {
-                return result2;
+            try {
+                String result = decodeQRCode(region);
+                if (result != null) {
+                    return result;
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Error decoding QR code from 1/2 height image.", e);
             }
         }
 
@@ -125,14 +137,18 @@ public class QRScannerService {
                 int regionHeight = (j == numRegions - 1) ? (height - startY) : (height / numRegions);
 
                 BufferedImage region = bufferedImage.getSubimage(startX, startY, regionWidth, regionHeight);
-                String result3 = decodeQRCode(region);
-                if (result3 != null) {
-                    return result3;
+                try {
+                    String result = decodeQRCode(region);
+                    if (result != null) {
+                        return result;
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("Error decoding QR code from 1/4 image", e);
                 }
             }
         }
 
-        return null;
+        return "";
     }
 
     private static String decodeQRCode(BufferedImage bufferedImage) throws ChecksumException, NotFoundException, FormatException {
