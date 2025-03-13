@@ -12,6 +12,7 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -29,7 +30,7 @@ public class QRScannerService {
             int pageCount = pdfDocument.getNumberOfPages();
             for (int i = 0; i < pageCount; i++) {
                 BufferedImage bufferedImage = pdfRenderer.renderImageWithDPI(i, 300); // 300 DPI for higher resolution
-                String qrCodeData = scanQRCodeImage(bufferedImage);
+                String qrCodeData = scanQRCodeImage(bufferedImage, (i + 1));
                 if (qrCodeData != null) {
                     qrCodesList.add(qrCodeData);
                 }
@@ -53,7 +54,7 @@ public class QRScannerService {
                         updateMessage("Cancelled");
                     }
                     BufferedImage bufferedImage = pdfRenderer.renderImageWithDPI(i, 300);
-                    String qrCodeData = scanQRCodeImage(bufferedImage);
+                    String qrCodeData = scanQRCodeImage(bufferedImage, (i + 1));
                     if (qrCodeData != null) {
                         result.add(qrCodeData);
                     }
@@ -86,7 +87,16 @@ public class QRScannerService {
         new Thread(task).start();
     }
 
-    private static String scanQRCodeImage(BufferedImage bufferedImage) throws ChecksumException, NotFoundException, FormatException {
+    public static void saveImageAsPNG(BufferedImage image, String filePath) {
+        try {
+            File outputFile = new File(filePath);
+            ImageIO.write(image, "png", outputFile);
+            System.out.println("Ảnh đã được lưu tại: " + outputFile.getAbsolutePath());
+        } catch (IOException e) {
+            System.err.println("Lỗi khi lưu ảnh: " + e.getMessage());
+        }
+    }
+    private static String scanQRCodeImage(BufferedImage bufferedImage, int page) throws ChecksumException, NotFoundException, FormatException {
         int width = bufferedImage.getWidth();
         int height = bufferedImage.getHeight();
 
@@ -96,7 +106,7 @@ public class QRScannerService {
                 return result;
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error decoding QR Code", e);
+            System.err.println("Error decoding QR Code page " + page + " " + e.getMessage());
         }
 
         int horizontal = 2;
@@ -110,7 +120,7 @@ public class QRScannerService {
                     return result;
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Error decoding QR code from 1/2 width image.", e);
+                System.err.println("Error decoding QR code from 1/2 width image page " + page + " " + e.getMessage());
             }
         }
 
@@ -124,7 +134,7 @@ public class QRScannerService {
                     return result;
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Error decoding QR code from 1/2 height image.", e);
+                System.err.println("Error decoding QR code from 1/2 height image page " + page + " " + e.getMessage());
             }
         }
 
@@ -143,12 +153,12 @@ public class QRScannerService {
                         return result;
                     }
                 } catch (Exception e) {
-                    throw new RuntimeException("Error decoding QR code from 1/4 image", e);
+                    System.err.println("Error decoding QR code from 1/4 image page " + page + e);
                 }
             }
         }
 
-        return "";
+        return null;
     }
 
     private static String decodeQRCode(BufferedImage bufferedImage) throws ChecksumException, NotFoundException, FormatException {
