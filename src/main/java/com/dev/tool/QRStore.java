@@ -1,22 +1,19 @@
 package com.dev.tool;
 
 public class QRStore {
-    private int storeId;
+    private String storeId;
     private String storeName;
 
-    public QRStore() {
-    }
-
-    public QRStore(int storeId, String storeName) {
+    public QRStore(String storeId, String storeName) {
         this.storeId = storeId;
         this.storeName = storeName;
     }
 
-    public int getStoreId() {
+    public String getStoreId() {
         return storeId;
     }
 
-    public void setStoreId(int storeId) {
+    public void setStoreId(String storeId) {
         this.storeId = storeId;
     }
 

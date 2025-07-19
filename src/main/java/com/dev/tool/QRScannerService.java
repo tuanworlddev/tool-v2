@@ -106,7 +106,6 @@ public class QRScannerService {
                 return result;
             }
         } catch (Exception e) {
-            System.err.println("Error decoding QR Code page " + page + " " + e.getMessage());
         }
 
         int horizontal = 2;
@@ -120,7 +119,6 @@ public class QRScannerService {
                     return result;
                 }
             } catch (Exception e) {
-                System.err.println("Error decoding QR code from 1/2 width image page " + page + " " + e.getMessage());
             }
         }
 
@@ -134,7 +132,6 @@ public class QRScannerService {
                     return result;
                 }
             } catch (Exception e) {
-                System.err.println("Error decoding QR code from 1/2 height image page " + page + " " + e.getMessage());
             }
         }
 
@@ -153,7 +150,6 @@ public class QRScannerService {
                         return result;
                     }
                 } catch (Exception e) {
-                    System.err.println("Error decoding QR code from 1/4 image page " + page + e);
                 }
             }
         }

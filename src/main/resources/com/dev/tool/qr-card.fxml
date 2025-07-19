@@ -9,7 +9,7 @@
 <?import javafx.scene.paint.Color?>
 <?import javafx.scene.text.Font?>
 
-<HBox fx:id="cardPane" alignment="CENTER_LEFT" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="50.0" prefWidth="450.0" spacing="4.0" style="-fx-background-color: #ffffff; -fx-background-radius: 6;" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.dev.tool.QRCardController">
+<HBox fx:id="cardPane" alignment="CENTER_LEFT" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="50.0" prefWidth="570.0" spacing="4.0" style="-fx-background-color: #ffffff; -fx-background-radius: 6;" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.dev.tool.QRCardController">
    <effect>
       <DropShadow>
          <color>
@@ -23,39 +23,46 @@
             <Font name="System Bold" size="13.0" />
          </font>
       </Label>
-      <Label fx:id="storeIdField" prefHeight="20.0" prefWidth="42.0" text="null">
+      <Label fx:id="storeIdField" prefHeight="20.0" prefWidth="50.0" text="null">
          <font>
             <Font size="14.0" />
          </font>
       </Label>
-      <Label prefHeight="20.0" text="Name:">
+      <Label prefHeight="20.0" text="Tên:">
          <font>
             <Font name="System Bold" size="13.0" />
          </font>
       </Label>
-      <Label fx:id="storeNameField" prefHeight="20.0" prefWidth="117.0" text="null">
+      <Label fx:id="storeNameField" prefHeight="20.0" prefWidth="150.0" text="null">
          <font>
             <Font size="14.0" />
          </font>
       </Label>
-      <Label prefHeight="20.0" text="Size:">
+      <Label prefHeight="20.0" text="Số Lượng:">
          <font>
             <Font name="System Bold" size="13.0" />
          </font>
       </Label>
-      <Label fx:id="sizeField" prefHeight="20.0" prefWidth="54.0" text="0">
+      <Label fx:id="sizeField" prefHeight="20.0" prefWidth="60.0" text="0">
          <font>
             <Font size="14.0" />
          </font>
       </Label>
-      <Button mnemonicParsing="false" onAction="#onImportQRCode" style="-fx-background-color: #FFC145;" text="Import">
+      <Button mnemonicParsing="false" onAction="#onImportQRCode" style="-fx-background-color: #4CAF50;" text="Thêm QR" textFill="WHITE">
          <cursor>
             <Cursor fx:constant="HAND" />
-         </cursor></Button>
-      <Button mnemonicParsing="false" onAction="#onDeleteStore" style="-fx-background-color: #FF2929;" text="Delete" textFill="WHITE">
+         </cursor>
+      </Button>
+      <Button mnemonicParsing="false" onAction="#onEditStoreId" style="-fx-background-color: #ef9c01;" text="Sửa" textFill="WHITE">
          <cursor>
             <Cursor fx:constant="HAND" />
-         </cursor></Button>
+         </cursor>
+      </Button>
+      <Button mnemonicParsing="false" onAction="#onDeleteStore" style="-fx-background-color: #FF2929;" text="Xóa" textFill="WHITE">
+         <cursor>
+            <Cursor fx:constant="HAND" />
+         </cursor>
+      </Button>
    </children>
    <padding>
       <Insets bottom="6.0" left="6.0" right="6.0" top="6.0" />

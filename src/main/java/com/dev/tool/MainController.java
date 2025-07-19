@@ -5,6 +5,7 @@ import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
@@ -17,10 +18,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
-import javafx.geometry.Insets;
 
 import java.awt.*;
 import java.io.File;
@@ -37,60 +36,68 @@ public class MainController implements Initializable {
     public TextArea codeTextArea;
     public Text statusVerifyField;
     private List<QRStore> qrStores;
-
     public VBox qrContainer;
     public AnchorPane rootPane;
 
     public void onAddQRItem(ActionEvent actionEvent) {
-        Dialog<String> dialog = new Dialog<>();
-        dialog.setTitle("Thêm QR");
+        Dialog<String[]> dialog = new Dialog<>();
+        dialog.setTitle("Thêm QR Store");
         ButtonType okButton = new ButtonType("Ok", ButtonBar.ButtonData.OK_DONE);
         ButtonType cancelButton = new ButtonType("Hủy", ButtonBar.ButtonData.CANCEL_CLOSE);
         dialog.getDialogPane().getButtonTypes().addAll(okButton, cancelButton);
 
         TextField idField = new TextField();
-        idField.setPromptText("Nhập tên");
+        idField.setPromptText("Nhập ID");
+        TextField nameField = new TextField();
+        nameField.setPromptText("Nhập tên");
 
         GridPane gridPane = new GridPane();
-        gridPane.setPrefSize(300, 50);
+        gridPane.setPrefSize(300, 80);
         gridPane.setHgap(10);
         gridPane.setVgap(10);
-        gridPane.add(new Label("Tên:"), 0, 0);
+        gridPane.add(new Label("ID:"), 0, 0);
         gridPane.add(idField, 1, 0);
+        gridPane.add(new Label("Tên:"), 0, 1);
+        gridPane.add(nameField, 1, 1);
         GridPane.setHgrow(idField, Priority.ALWAYS);
+        GridPane.setHgrow(nameField, Priority.ALWAYS);
 
         dialog.getDialogPane().setContent(gridPane);
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == okButton) {
-                return idField.getText();
+                return new String[]{idField.getText(), nameField.getText()};
             }
             return null;
         });
-        dialog.showAndWait().ifPresent(storeName -> {
-            if (!storeName.isEmpty()) {
+        dialog.showAndWait().ifPresent(result -> {
+            String storeId = result[0];
+            String storeName = result[1];
+            if (!storeId.isEmpty() && !storeName.isEmpty()) {
                 try {
-                    QRStore qrStore = QRStoreService.createQRStore(storeName);
+                    QRStore qrStore = QRStoreService.createQRStore(storeId, storeName);
                     addQRCard(qrStore.getStoreId(), qrStore.getStoreName(), 0);
                 } catch (Exception e) {
-                    notification("Lỗi", e.getMessage(), Alert.AlertType.ERROR);
+                    notification("Lỗi", "Không thể tạo QR Store: " + e.getMessage(), Alert.AlertType.ERROR);
                 }
+            } else {
+                notification("Lỗi", "ID và tên không được để trống.", Alert.AlertType.ERROR);
             }
         });
     }
 
-    public void addQRCard(int storeId, String storeName, int size) {
+    public void addQRCard(String storeId, String storeName, int size) {
         try {
             FXMLLoader loader = new FXMLLoader(MainController.class.getResource("qr-card.fxml"));
             loader.load();
             QRCardController controller = loader.getController();
-            controller.storeIdField.setText(String.valueOf(storeId));
+            controller.storeIdField.setText(storeId);
             controller.storeNameField.setText(storeName);
             controller.sizeField.setText(String.valueOf(size));
             controller.setQRContainer(qrContainer);
             qrContainer.getChildren().add(loader.getRoot());
             qrContainer.layout();
         } catch (IOException e) {
-            notification("Lỗi", e.getMessage(), Alert.AlertType.ERROR);
+            notification("Lỗi", "Không thể tải QR Card: " + e.getMessage(), Alert.AlertType.ERROR);
         }
     }
 
@@ -161,12 +168,12 @@ public class MainController implements Initializable {
 
                             if (!codeTextArea.getText().isBlank()) {
                                 updateMessage("Xử lý QR Codes...");
-                                Pattern pattern = Pattern.compile("(\\d+):(\\d+)-(\\d+)");
+                                Pattern pattern = Pattern.compile("(\\w+):(\\d+)-(\\d+)");
                                 String[] commands = codeTextArea.getText().split("\n");
                                 for (String command : commands) {
                                     Matcher matcher = pattern.matcher(command);
                                     if (matcher.matches()) {
-                                        int id = Integer.parseInt(matcher.group(1));
+                                        String id = matcher.group(1);
                                         int from = Integer.parseInt(matcher.group(2));
                                         int to = Integer.parseInt(matcher.group(3));
                                         List<String> current = QRCodeService.getQRCodesByStoreId(id, to - from + 1);
@@ -175,42 +182,41 @@ public class MainController implements Initializable {
                                 }
                             }
 
-                            // Sử dụng Platform.runLater để hiển thị hộp thoại lưu file
-                            final File[] fileExport1 = new File[1];  // Lưu giá trị file để sử dụng sau
                             Platform.runLater(() -> {
                                 FileChooser fileChooser = FileChooserService.csvFileChooser();
+                                File[] fileExport1 = new File[1];
                                 fileExport1[0] = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
                                 synchronized (fileExport1) {
-                                    fileExport1.notify();  // Đánh thức thread đang chờ
+                                    fileExport1.notify();
                                 }
                             });
 
-                            synchronized (fileExport1) {
-                                fileExport1.wait();  // Đợi cho đến khi hộp thoại lưu file được xử lý xong
+                            synchronized (this) {
+                                wait();
                             }
 
-                            if (fileExport1[0] != null) {
+                            File fileExport1 = FileChooserService.csvFileChooser().showSaveDialog(rootPane.getScene().getWindow());
+                            if (fileExport1 != null) {
                                 updateMessage("Xuất dữ liệu...");
                                 Object[][] export1Data = ExportService.export1(orders, products, qrCodes);
                                 Object[][] export2Data = ExportService.export2(products, qrCodes);
 
-                                int lastDotIndex = fileExport1[0].getAbsolutePath().lastIndexOf(".");
+                                int lastDotIndex = fileExport1.getAbsolutePath().lastIndexOf(".");
                                 String fileNameWithoutExtension = (lastDotIndex != -1)
-                                        ? fileExport1[0].getAbsolutePath().substring(0, lastDotIndex)
-                                        : fileExport1[0].getAbsolutePath();
+                                        ? fileExport1.getAbsolutePath().substring(0, lastDotIndex)
+                                        : fileExport1.getAbsolutePath();
                                 String fileExtension = (lastDotIndex != -1)
-                                        ? fileExport1[0].getAbsolutePath().substring(lastDotIndex)
+                                        ? fileExport1.getAbsolutePath().substring(lastDotIndex)
                                         : ".csv";
 
                                 String fileExport2 = fileNameWithoutExtension + "_1" + fileExtension;
 
-                                CSVService.writeCSV(fileExport1[0].getAbsolutePath(), export1Data);
+                                CSVService.writeCSV(fileExport1.getAbsolutePath(), export1Data);
                                 CSVService.writeCSV(fileExport2, export2Data);
 
-                                // Mở file sau khi ghi xong (chạy trên UI Thread)
                                 Platform.runLater(() -> {
                                     try {
-                                        Desktop.getDesktop().open(fileExport1[0]);
+                                        Desktop.getDesktop().open(fileExport1);
                                         Desktop.getDesktop().open(new File(fileExport2));
                                         showConfirmationDialog(qrCodes);
                                     } catch (IOException e) {
@@ -328,7 +334,6 @@ public class MainController implements Initializable {
                     this.notification("Lỗi", "Mật khẩu không chính xác", Alert.AlertType.ERROR);
                 }
             }
-
         });
     }
 }

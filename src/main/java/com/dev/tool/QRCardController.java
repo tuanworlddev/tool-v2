@@ -1,18 +1,22 @@
 package com.dev.tool;
 
+import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
+import javafx.util.Pair;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 public class QRCardController implements Initializable {
@@ -28,7 +32,70 @@ public class QRCardController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
+    }
 
+    public void onEditStoreId(ActionEvent actionEvent) {
+        String currentStoreId = storeIdField.getText();
+        String currentStoreName = storeNameField.getText();
+
+        if (currentStoreId.isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Mã cửa hàng hiện tại đang trống.");
+            return;
+        }
+
+        // Tạo dialog tùy chỉnh cho cả ID và Tên
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("Chỉnh sửa Cửa Hàng");
+        dialog.setHeaderText("Nhập mã và tên cửa hàng mới");
+
+        ButtonType updateButtonType = new ButtonType("Cập nhật", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(updateButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField idField = new TextField(currentStoreId);
+        TextField nameField = new TextField(currentStoreName);
+
+        grid.add(new Label("Mã cửa hàng mới:"), 0, 0);
+        grid.add(idField, 1, 0);
+        grid.add(new Label("Tên cửa hàng mới:"), 0, 1);
+        grid.add(nameField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+        Platform.runLater(idField::requestFocus);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == updateButtonType) {
+                return new Pair<>(idField.getText().trim(), nameField.getText().trim());
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
+        result.ifPresent(pair -> {
+            String newId = pair.getKey();
+            String newName = pair.getValue();
+
+            if (newId.isEmpty() || newName.isEmpty()) {
+                showAlert(Alert.AlertType.ERROR, "Lỗi", "Mã hoặc tên cửa hàng không được để trống.");
+                return;
+            }
+
+            try {
+                boolean updated = QRStoreService.updateStore(currentStoreId, newId, newName);
+                if (updated) {
+                    storeIdField.setText(newId);
+                    storeNameField.setText(newName);
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Lỗi", "Cập nhật thất bại. Có thể mã cửa hàng đã tồn tại.");
+                }
+            } catch (Exception e) {
+                showAlert(Alert.AlertType.ERROR, "Lỗi", "Lỗi khi cập nhật: " + e.getMessage());
+            }
+        });
     }
 
     public void onImportQRCode(ActionEvent actionEvent) {
@@ -47,7 +114,6 @@ public class QRCardController implements Initializable {
 
             Task<List<String>> task = getListTask(pdfFileSelected, loadingDialog);
 
-            // Bắt đầu Task và hiển thị dialog
             new Thread(task).start();
             loadingDialog.setResultConverter(dialogButton -> {
                 if (dialogButton == ButtonType.CANCEL) {
@@ -71,8 +137,8 @@ public class QRCardController implements Initializable {
             loadingDialog.close();
             List<String> qrList = task.getValue();
             if (qrList != null && !qrList.isEmpty()) {
-                QRCodeService.insertQRCodeList(qrList, Integer.parseInt(storeIdField.getText()));
-                int count = QRCodeService.getCountQRCodeByStoreId(Integer.parseInt(storeIdField.getText()));
+                QRCodeService.insertQRCodeList(qrList, storeIdField.getText());
+                int count = QRCodeService.getCountQRCodeByStoreId(storeIdField.getText());
                 sizeField.setText(String.valueOf(count));
             } else {
                 showAlert(Alert.AlertType.WARNING, "Lỗi không tìm thấy mã QR", "Vui lòng kiểm tra lại file PDF.");
@@ -90,10 +156,11 @@ public class QRCardController implements Initializable {
 
     public void onDeleteStore(ActionEvent actionEvent) {
         if (storeIdField.getText().isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Error", "Store ID is empty.");
             return;
         }
 
-        int storeId = Integer.parseInt(storeIdField.getText());
+        String storeId = storeIdField.getText();
 
         Alert confirmationAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmationAlert.setTitle("Confirm Delete");
@@ -103,7 +170,6 @@ public class QRCardController implements Initializable {
         confirmationAlert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
                 boolean isDeleted = QRStoreService.deleteQRStore(storeId);
-
                 if (isDeleted) {
                     qrContainer.getChildren().remove(cardPane);
                 } else {

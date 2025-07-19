@@ -2,13 +2,13 @@ package com.dev.tool;
 
 public class QRCode {
     private int qrId;
-    private int storeId;
+    private String storeId;
     private String qrCode;
 
     public QRCode() {
     }
 
-    public QRCode(int qrId, int storeId, String qrCode) {
+    public QRCode(int qrId, String storeId, String qrCode) {
         this.qrId = qrId;
         this.storeId = storeId;
         this.qrCode = qrCode;
@@ -22,11 +22,11 @@ public class QRCode {
         this.qrId = qrId;
     }
 
-    public int getStoreId() {
+    public String getStoreId() {
         return storeId;
     }
 
-    public void setStoreId(int storeId) {
+    public void setStoreId(String storeId) {
         this.storeId = storeId;
     }
 
