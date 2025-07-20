@@ -25,6 +25,10 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -102,10 +106,12 @@ public class MainController implements Initializable {
     }
 
     public void notification(String title, String content, Alert.AlertType type) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(content);
-        alert.showAndWait();
+        Platform.runLater(() -> {
+            Alert alert = new Alert(type);
+            alert.setTitle(title);
+            alert.setHeaderText(content);
+            alert.showAndWait();
+        });
     }
 
     @Override
@@ -155,90 +161,115 @@ public class MainController implements Initializable {
     public void onExport(ActionEvent actionEvent) {
         if (!AuthController.getInstance().isLoggedIn) {
             showLoginPop();
-        } else {
-            if (!excel1Field.getText().isEmpty() || !excel2Field.getText().isEmpty()) {
-                Task<Void> exportTask = new Task<>() {
-                    @Override
-                    protected Void call() throws Exception {
-                        try {
-                            updateMessage("Đọc dữ liệu từ file Excel...");
-                            List<Order> orders = ExportService.readExcel1(excel1Field.getText());
-                            List<Product> products = ExportService.readExcel2(excel2Field.getText());
-                            List<String> qrCodes = new ArrayList<>();
+            return;
+        }
 
-                            if (!codeTextArea.getText().isBlank()) {
-                                updateMessage("Xử lý QR Codes...");
-                                Pattern pattern = Pattern.compile("(\\w+):(\\d+)-(\\d+)");
-                                String[] commands = codeTextArea.getText().split("\n");
-                                for (String command : commands) {
-                                    Matcher matcher = pattern.matcher(command);
-                                    if (matcher.matches()) {
-                                        String id = matcher.group(1);
-                                        int from = Integer.parseInt(matcher.group(2));
-                                        int to = Integer.parseInt(matcher.group(3));
-                                        List<String> current = QRCodeService.getQRCodesByStoreId(id, to - from + 1);
-                                        qrCodes.addAll(current);
+        if (excel1Field.getText().isEmpty() && excel2Field.getText().isEmpty()) {
+            notification("Lỗi", "Vui lòng chọn ít nhất một file Excel.", Alert.AlertType.ERROR);
+            return;
+        }
+
+        if (!new File(excel1Field.getText()).exists() && !new File(excel2Field.getText()).exists()) {
+            notification("Lỗi", "File Excel không tồn tại.", Alert.AlertType.ERROR);
+            return;
+        }
+
+        Task<Void> exportTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    updateMessage("Đọc dữ liệu từ file Excel...");
+                    List<Order> orders = ExportService.readExcel1(excel1Field.getText());
+                    List<Product> products = ExportService.readExcel2(excel2Field.getText());
+                    List<String> qrCodes = new ArrayList<>();
+
+                    if (!codeTextArea.getText().isBlank()) {
+                        updateMessage("Xử lý QR Codes...");
+                        Pattern pattern = Pattern.compile("(\\w+):(\\d+)-(\\d+)");
+                        String[] commands = codeTextArea.getText().split("\n");
+                        for (String command : commands) {
+                            command = command.trim();
+                            if (command.isEmpty()) continue;
+                            Matcher matcher = pattern.matcher(command);
+                            if (matcher.matches()) {
+                                String id = matcher.group(1);
+                                int from = Integer.parseInt(matcher.group(2));
+                                int to = Integer.parseInt(matcher.group(3));
+                                if (from <= to) {
+                                    boolean storeExists = QRStoreService.getAllStores().stream()
+                                            .anyMatch(store -> store.getStoreId().equals(id));
+                                    if (!storeExists) {
+                                        Platform.runLater(() -> notification("Lỗi", "Cửa hàng không tồn tại: " + id, Alert.AlertType.ERROR));
+                                        continue;
                                     }
-                                }
-                            }
-
-                            Platform.runLater(() -> {
-                                FileChooser fileChooser = FileChooserService.csvFileChooser();
-                                File[] fileExport1 = new File[1];
-                                fileExport1[0] = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
-                                synchronized (fileExport1) {
-                                    fileExport1.notify();
-                                }
-                            });
-
-                            synchronized (this) {
-                                wait();
-                            }
-
-                            File fileExport1 = FileChooserService.csvFileChooser().showSaveDialog(rootPane.getScene().getWindow());
-                            if (fileExport1 != null) {
-                                updateMessage("Xuất dữ liệu...");
-                                Object[][] export1Data = ExportService.export1(orders, products, qrCodes);
-                                Object[][] export2Data = ExportService.export2(products, qrCodes);
-
-                                int lastDotIndex = fileExport1.getAbsolutePath().lastIndexOf(".");
-                                String fileNameWithoutExtension = (lastDotIndex != -1)
-                                        ? fileExport1.getAbsolutePath().substring(0, lastDotIndex)
-                                        : fileExport1.getAbsolutePath();
-                                String fileExtension = (lastDotIndex != -1)
-                                        ? fileExport1.getAbsolutePath().substring(lastDotIndex)
-                                        : ".csv";
-
-                                String fileExport2 = fileNameWithoutExtension + "_1" + fileExtension;
-
-                                CSVService.writeCSV(fileExport1.getAbsolutePath(), export1Data);
-                                CSVService.writeCSV(fileExport2, export2Data);
-
-                                Platform.runLater(() -> {
-                                    try {
-                                        Desktop.getDesktop().open(fileExport1);
-                                        Desktop.getDesktop().open(new File(fileExport2));
-                                        showConfirmationDialog(qrCodes);
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                        notification("Lỗi", e.getMessage(), Alert.AlertType.ERROR);
+                                    List<String> current = QRCodeService.getQRCodesByStoreId(id, to - from + 1);
+                                    if (current.isEmpty()) {
+                                        Platform.runLater(() -> notification("Cảnh báo", "Không tìm thấy mã QR cho cửa hàng " + id, Alert.AlertType.WARNING));
                                     }
-                                });
+                                    qrCodes.addAll(current);
+                                    System.out.println("Processing command: " + command + ", retrieved " + current.size() + " QR codes");
+                                } else {
+                                    String finalCommand = command;
+                                    Platform.runLater(() -> notification("Lỗi", "Phạm vi QR Code không hợp lệ: " + finalCommand, Alert.AlertType.ERROR));
+                                }
+                            } else {
+                                String finalCommand1 = command;
+                                Platform.runLater(() -> notification("Lỗi", "Định dạng lệnh không hợp lệ: " + finalCommand1, Alert.AlertType.ERROR));
                             }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            Platform.runLater(() -> notification("Lỗi", e.getMessage(), Alert.AlertType.ERROR));
                         }
+                    }
+
+                    updateMessage("Chọn file để lưu...");
+                    File[] fileExport1 = new File[1];
+                    Platform.runLater(() -> {
+                        fileExport1[0] = FileChooserService.csvFileChooser().showSaveDialog(rootPane.getScene().getWindow());
+                    });
+
+                    // Chờ cho đến khi người dùng chọn file
+                    while (fileExport1[0] == null && !isCancelled()) {
+                        Thread.sleep(100);
+                    }
+
+                    if (fileExport1[0] == null) {
+                        Platform.runLater(() -> notification("Lỗi", "Chưa chọn file để lưu.", Alert.AlertType.ERROR));
                         return null;
                     }
-                };
 
-                createProgressDialog(exportTask);
-                new Thread(exportTask).start();
-            } else {
-                notification("Lỗi", "Vui lòng chọn ít nhất một file Excel.", Alert.AlertType.ERROR);
+                    updateMessage("Xuất dữ liệu...");
+                    Object[][] export1Data = ExportService.export1(orders, products, qrCodes);
+                    Object[][] export2Data = ExportService.export2(products, qrCodes);
+
+                    int lastDotIndex = fileExport1[0].getAbsolutePath().lastIndexOf(".");
+                    String fileNameWithoutExtension = (lastDotIndex != -1)
+                            ? fileExport1[0].getAbsolutePath().substring(0, lastDotIndex)
+                            : fileExport1[0].getAbsolutePath();
+                    String fileExtension = (lastDotIndex != -1)
+                            ? fileExport1[0].getAbsolutePath().substring(lastDotIndex)
+                            : ".csv";
+                    String fileExport2 = fileNameWithoutExtension + "_1" + fileExtension;
+
+                    CSVService.writeCSV(fileExport1[0].getAbsolutePath(), export1Data);
+                    CSVService.writeCSV(fileExport2, export2Data);
+
+                    File finalFileExport1 = fileExport1[0];
+                    Platform.runLater(() -> {
+                        try {
+                            Desktop.getDesktop().open(finalFileExport1);
+                            Desktop.getDesktop().open(new File(fileExport2));
+                            showConfirmationDialog(qrCodes);
+                        } catch (IOException e) {
+                            notification("Lỗi", e.getMessage(), Alert.AlertType.ERROR);
+                        }
+                    });
+                } catch (Exception e) {
+                    Platform.runLater(() -> notification("Lỗi", e.getMessage(), Alert.AlertType.ERROR));
+                }
+                return null;
             }
-        }
+        };
+
+        createProgressDialog(exportTask);
+        new Thread(exportTask).start();
     }
 
     private void createProgressDialog(Task<?> task) {
@@ -254,13 +285,19 @@ public class MainController implements Initializable {
         Label statusLabel = new Label();
         statusLabel.textProperty().bind(task.messageProperty());
 
+        ButtonType cancelButton = new ButtonType("Hủy", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE, cancelButton);
+        Button closeButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.CLOSE);
+        closeButton.setDisable(true);
+
+        dialog.getDialogPane().lookupButton(cancelButton).addEventFilter(ActionEvent.ACTION, event -> {
+            task.cancel();
+            dialog.close();
+        });
+
         VBox dialogContent = new VBox(10, statusLabel, progressBar);
         dialogContent.setAlignment(Pos.CENTER);
         dialog.getDialogPane().setContent(dialogContent);
-
-        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        Button closeButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.CLOSE);
-        closeButton.setDisable(true);
 
         task.setOnSucceeded(e -> {
             closeButton.setDisable(false);
@@ -272,6 +309,12 @@ public class MainController implements Initializable {
             closeButton.setDisable(false);
             dialog.setResult(ButtonType.CLOSE);
             dialog.close();
+            Platform.runLater(() -> notification("Lỗi", "Tác vụ bị hủy hoặc thất bại: " + task.getException().getMessage(), Alert.AlertType.ERROR));
+        });
+
+        task.setOnCancelled(e -> {
+            dialog.close();
+            Platform.runLater(() -> notification("Thông báo", "Tác vụ đã bị hủy.", Alert.AlertType.INFORMATION));
         });
 
         dialog.show();
@@ -288,6 +331,37 @@ public class MainController implements Initializable {
             QRCodeService.deleteQRCodes(qrCodes);
             refreshQRCard();
             notification("Thành công", "Đã xóa " + qrCodes.size() + " QR Codes.", Alert.AlertType.INFORMATION);
+        }
+    }
+
+    public static void checkTriggers() {
+        try (Connection conn = SQLiteConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT name, tbl_name, sql FROM sqlite_master WHERE type='trigger'")) {
+            System.out.println("Triggers in database:");
+            boolean hasTriggers = false;
+            while (rs.next()) {
+                hasTriggers = true;
+                System.out.println("Trigger: " + rs.getString("name") + ", Table: " + rs.getString("tbl_name") + ", SQL: " + rs.getString("sql"));
+            }
+            if (!hasTriggers) {
+                System.out.println("No triggers found in database.");
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking triggers: " + e.getMessage());
+        }
+    }
+
+    public static void checkTables() {
+        try (Connection conn = SQLiteConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT name FROM sqlite_master WHERE type='table'")) {
+            System.out.println("Tables in database:");
+            while (rs.next()) {
+                System.out.println(rs.getString("name"));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking tables: " + e.getMessage());
         }
     }
 
@@ -321,7 +395,7 @@ public class MainController implements Initializable {
                         try {
                             AuthService.insertKey(key);
                         } catch (Exception var7) {
-                            this.notification("Lỗi", var7.getMessage(), Alert.AlertType.ERROR);
+                            notification("Lỗi", var7.getMessage(), Alert.AlertType.ERROR);
                         }
                     }
 
@@ -331,7 +405,7 @@ public class MainController implements Initializable {
                     successAlert.setContentText("Xác thực thành công!");
                     successAlert.showAndWait();
                 } else {
-                    this.notification("Lỗi", "Mật khẩu không chính xác", Alert.AlertType.ERROR);
+                    notification("Lỗi", "Mật khẩu không chính xác", Alert.AlertType.ERROR);
                 }
             }
         });

@@ -5,6 +5,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -132,9 +133,19 @@ public class ExportService {
                     Cell cell8 = row.getCell(8);
                     product.setSticker((cell8 != null) ? dataFormatter.formatCellValue(cell8) : "");
 
-                    // Xử lý Barcode (Cột 9)
-                    Cell cell9 = row.getCell(9);
-                    product.setBarcode((cell9 != null) ? dataFormatter.formatCellValue(cell9) : "");
+                    Cell cell9 = row.getCell(9); // Cột J
+                    String barcodeStr = "";
+                    if (cell9 != null) {
+                        if (cell9.getCellType() == CellType.NUMERIC) {
+                            // Lấy giá trị số chính xác và chuyển thành BigInteger
+                            BigInteger barcodeValue = BigInteger.valueOf((long) cell9.getNumericCellValue());
+                            barcodeStr = barcodeValue.toString();
+                        } else {
+                            // Nếu là text, giữ nguyên giá trị
+                            barcodeStr = new DataFormatter().formatCellValue(cell9).trim();
+                        }
+                    }
+                    product.setBarcode(barcodeStr);
 
                     products.add(product);
                 }
