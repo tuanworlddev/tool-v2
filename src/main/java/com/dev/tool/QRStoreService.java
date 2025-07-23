@@ -72,7 +72,7 @@ public class QRStoreService {
 
     public static List<QRStore> getAllStores() {
         List<QRStore> qrStores = new ArrayList<>();
-        String sql = "SELECT * FROM qr_stores";
+        String sql = "SELECT * FROM qr_stores ORDER BY CAST(id AS INTEGER) ASC";
 
         try (Connection conn = SQLiteConnection.getConnection();
              Statement stmt = conn.createStatement();
